@@ -16,7 +16,7 @@
 
 ## Overview
 
-Blink records frames from a device like normal recording software but only keeps frames that change significantly from the previously recorded event, reducing the overall use of space. 
+Blink records frames from a device like normal recording software but only keeps those that change significantly from the frame in the previously recorded event to minimize space requirements
 
 It utilizes SSIM, Flat Difference in RGB, and PSNR to detect what the percent difference is between two images and only records the frame if the difference exceeds a threshold set through the arguments. Each time that happens, the program then uses a cascade classifier that can be set through arguments to identify any objects in the image it finds. Any and all identified objects are labeled with a number, weight of identification, and a outline depicting the region of interest. 
 
