@@ -208,24 +208,27 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 	cascade.detectMultiScale(procIMG, regions, levels, weights, 
 		1.1, 3, 0, Size(), Size(), true);
 
-	// Try rotating image and searching for objects in each
-	// different orientation if specified to do so
+	// Try rotating image different ways and searching 
+	// for objects in each different orientation if specified
 	if (rotOpt) {
+		vector<Rect> rx;
+		vector<double> wx;
 
 		// 90 rotation
 		transpose(procIMG, procIMG);
-		cascade.detectMultiScale(procIMG, regions, levels, weights, 
+		cascade.detectMultiScale(procIMG, rx, levels, wx, 
 			1.1, 3, 0, Size(), Size(), true);
+
+		for (size_t i = 0; i < rx.size(); i++)
+			regions.push_back(rx[i]), weights.push_back(wx[i]);
 
 		// 270 rotation
 		flip(procIMG, procIMG, 1);
-		cascade.detectMultiScale(procIMG, regions, levels, weights, 
+		cascade.detectMultiScale(procIMG, rx, levels, wx, 
 			1.1, 3, 0, Size(), Size(), true);
 
-		// 180 rotation
-		transpose(procIMG, procIMG);
-		cascade.detectMultiScale(procIMG, regions, levels, weights, 
-			1.1, 3, 0, Size(), Size(), true);
+		for (size_t i = 0; i < rx.size(); i++)
+			regions.push_back(rx[i]), weights.push_back(wx[i]);
 	}
 
 	// For every ROI (identified object)
