@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 	int blur = parser.get<int>("blur");
 	int mode = parser.get<int>("mode");
 	int tryRotate = parser.get<int>("rotate");
-	double threshold = (parser.get<double>("threshold")*0.01);
+	double threshold = parser.get<double>("threshold")*0.01;
 	double scale = (parser.get<double>("scale"));
 	long interval = stol(parser.get<string>("interval"), 0, 10);
 	string cascPath = parser.get<string>("classifier");
@@ -40,13 +40,14 @@ int main(int argc, char* argv[]) {
 	// Setup timer 'ts' for interval between captures
 	// e.g Default: 500000000ns -> 500ms -> 0.5s
 	struct timespec ts = {ts.tv_sec = 0, ts.tv_nsec = interval};
-	while (ts.tv_nsec >= 1000000000L) {ts.tv_sec++, ts.tv_nsec-=1000000000L;}
+	while (ts.tv_nsec >= 1000000000L)
+		ts.tv_sec++, ts.tv_nsec-=1000000000L;
 
 	// Open the camera and capture a single image
 	Mat idIMG, curr, prev;
 	VideoCapture cap;
 	if (!cap.open(devID)) {
-		fprintf(stderr, "ERR isOpened() -- failed on device '%i'\n", devID);
+		fprintf(stderr, "ERR isOpened() failed opening '%i'\n", devID);
 		return EXIT_FAILURE;
 	}
 	cap >> prev;
@@ -54,7 +55,7 @@ int main(int argc, char* argv[]) {
 	// Load the classifier for identifying object(s) in frame
 	CascadeClassifier cascade;
 	if (!cascade.load(cascPath)) {
-		fprintf(stderr, "ERR load() -- failed opening '%s'\n", cascPath);
+		fprintf(stderr, "ERR load() failed loading '%s'\n", cascPath);
 		return EXIT_FAILURE;
 	}
 
@@ -65,29 +66,24 @@ int main(int argc, char* argv[]) {
 		nanosleep(&ts, NULL);
 		cap >> curr;
 		if (curr.empty()) {
-			fprintf(stderr, "ERR main() -- empty() image read\n");
+			fprintf(stderr, "ERR main() empty capture\n");
 			return EXIT_FAILURE;
 		}
 
-		// Check for mishaped capture image
+		// Check for invalid dimensions before comparing
 		if (curr.cols != prev.cols || curr.rows != prev.rows) {
-			fprintf(stderr, "ERR main() -- bad capture dims\n");
+			fprintf(stderr, "ERR main() bad capture dims\n");
 			return EXIT_FAILURE;
 		}
-		
-		// See if the difference is significant enough 
+
+		// Check if the difference is significant enough
 		// to warrant a thorough difference calculation
-		if (PSNR(curr, prev) > 50.0)
+		if (PSNR(curr, prev) > 45.0)
 			continue;
 
 		// Calculate the difference using specified method
-		double diff = 0.0;
-		if (mode)
-			diff = SSIM(curr, prev);
-		
-		else
-			diff = FTPD(curr, prev, 25.0f);
-		
+		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, 25.0f);
+
 		// Check if the difference percentage between the captures 
 		// excedes the threshold for 'different images'
 		if (diff >= threshold) {
@@ -95,17 +91,18 @@ int main(int argc, char* argv[]) {
 			// Log the event and check for identifiable objects
 			time_t ctime;
 			time(&ctime);
-			fprintf(stdout, "\n%sEvent #%i -- %4.2f%% difference\n", 
+			fprintf(stdout, "\n%sEvent #%i -- %4.2f%% difference\n",
 				asctime(localtime(&ctime)), cnum, diff*100);
 
 			idIMG = curr.clone();
 			fprintf(stdout, "Identified '%i' object(s)...\n\n",
 				detectObj(idIMG, cascade, scale, tryRotate, blur));
-		
+
 			// Write the capture to a seperately saved image and
 			// reset 'prev' for the next comparison
 			char nameBuff[50];
 			sprintf(nameBuff, "capture-%i.png", cnum++);
+			imwrite(nameBuff, idIMG);
 			prev = curr.clone();
 		}
 	}
