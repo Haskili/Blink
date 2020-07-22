@@ -16,11 +16,11 @@
 
 ## Overview
 
-Blink records frames from a device like normal recording software but only keeps those that change significantly from the frame in the previously recorded event to minimize space requirements
+Blink records frames from a device like normal recording software, but only keeps those that change significantly from the frame in the previously recorded event to minimize space requirements.
 
-It utilizes SSIM, Flat Difference in RGB, and PSNR to detect what the percent difference is between two images and only records the frame if the difference exceeds a threshold set through the arguments. Each time that happens, the program then uses a cascade classifier that can be set through arguments to identify any objects in the image it finds. Any and all identified objects are labeled with a number, weight of identification, and a outline depicting the region of interest. 
+It utilizes [SSIM](https://en.wikipedia.org/wiki/Structural_similarity), Flat Difference, and [PSNR](https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio) to detect how different two images are and only records the frame if that difference exceeds a threshold set through the arguments. Each time that happens, the program then uses a cascade classifier that can be set through arguments to identify objects in the image. Any and all identified objects are labeled with a number, weight of identification, and a outline depicting the region of interest. 
 
-Finally, it will alert the user through STDOUT to the time of the event, event number, and save this image to a separate file with the same label as that event number.
+Finally, it will alert the user through STDOUT to the time of the event, event number, and then saves this image to a separate file with the same label as that event number.
 
 ## Getting Started
 
@@ -31,7 +31,7 @@ pacman -S opencv (optional dependencies)
 ```
 Please see dependencies listed [here](https://www.archlinux.org/packages/extra/x86_64/opencv/).
 
-To use the classification functionality, it is required to have a cascade file. In my own testing, I used the cascade file that comes with `opencv-samples` from the [AUR](https://www.archlinux.org/packages/extra/x86_64/opencv-samples/) for front-facing human faces.
+To use the classification functionality, it is required to have a cascade file. In my own testing, I used the cascade file created by Rainer Lienhart that comes with `opencv-samples` from the [AUR](https://www.archlinux.org/packages/extra/x86_64/opencv-samples/) for front-facing human faces. These files are also available [here](https://github.com/opencv/opencv/blob/master/data/haarcascades/), in the OpenCV repository.
 
 ## Usage
 
