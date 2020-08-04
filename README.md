@@ -1,16 +1,12 @@
+
 <h1 align="center">Blink</h1> 
   <p align="center">
+  <img src="https://i.imgur.com/zB2YVNx.png"  alt="blink-icon"  width="100"  height="70"><br>
     An OpenCV approach to CCTV
-    <br/><br/><br/>  
-    [
-    <a href="https://docs.opencv.org/4.0.1/index.html">OpenCV</a>
-    ]
-    [
-    <a href="https://github.com/Haskili/Blink#acknowledgements">Acknowledgements</a>
-    ]
-    [
-    <a href="https://github.com/Haskili/Blink/issues">Issues</a>
-  ]
+    <br/><br/><br/>
+    [<a href="https://docs.opencv.org/4.0.1/index.html">OpenCV</a>]
+    [<a href="https://github.com/Haskili/Blink#acknowledgements">Acknowledgements</a>]
+    [<a href="https://github.com/Haskili/Blink/issues">Issues</a>]
   </p>
 </p>
 
@@ -20,7 +16,7 @@ Blink records frames from a device like normal recording software, but only keep
 
 It utilizes [SSIM](https://en.wikipedia.org/wiki/Structural_similarity), Flat Difference, and [PSNR](https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio) to detect how different two images are and only records the frame if that difference exceeds a threshold set through the arguments. Each time that happens, the program then uses a cascade classifier that can be set through arguments to identify objects in the image. Any and all identified objects are labeled with a number, weight of identification, and a outline depicting the region of interest. 
 
-Finally, it will alert the user through STDOUT to the time of the event, event number, and then saves this image to a separate file with the same label as that event number.
+Finally, it will alert the user through the standard output as to the time of the event, event number, and then saves this image to a separate file with the same label as that event number.
 
 ## Getting Started
 
