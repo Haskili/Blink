@@ -11,4 +11,4 @@ blink: blink.cpp blink.h
 
 clean:
 	@echo "Removing executables and capture.png files from directory..."
-	rm -rf ./blink ./*.png 
+	rm -rf ./blink ./*.png

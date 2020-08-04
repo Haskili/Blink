@@ -17,7 +17,6 @@
 
 // Basic dependencies
 #include <ctime>
-#include <iostream>
 
 using namespace cv;
 using std::string;
@@ -69,7 +68,10 @@ double FTPD(Mat& A, Mat& B, float thrsh) {
 	relatively quick calculation compared to the SSIM() where
 	a significantly higher amount of resources are required
 
-	See: 
+	A function for calculating the ratio exists in OpenCV as
+	cv::PSNR(), but it is something worth going over regardless
+
+	References:
 	"https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio"
 	"double cv::PSNR(...)"
 	"https://docs.opencv.org/2.4/doc/tutorials/highgui/
@@ -104,7 +106,10 @@ double PSNR(Mat& A, Mat& B) {
 	something like PSNR(), and should only be used after a call to
 	PSNR() returns a value exceeding the threshold for 'different images'
 
-	See: 
+	Any references to 'z' variables are often the product of that section's
+	x & y, so please keep that in mind when considering the formulas for SSIM
+
+	References:
 	"https://en.wikipedia.org/wiki/Structural_similarity"
 	"https://docs.opencv.org/2.4/doc/tutorials/highgui/
 			video-input-psnr-ssim/video-input-psnr-ssim.html"
@@ -186,8 +191,8 @@ int fdWait(int seconds, int microseconds) {
 
 	The biggest thing(s) that distinguish it from all of 
 	the examples I've seen for similar tasks is that it 
-	tries multiple rotations, labels each ROI uniquely, 
-	and returns the object identification amount each call
+	tries multiple rotations, labels each ROI uniquely,
+	and it returns the identification amount
 */
 int detectObj(Mat& img, CascadeClassifier& cascade,
 			double scale, int rotOpt, int blurOpt) {
