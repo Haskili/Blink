@@ -32,7 +32,7 @@ To use the classification functionality, it is required to have a cascade file. 
 ## Usage
 
 ```sh
-./blink (OPTIONS)
+./driver (OPTIONS)
 ```
 
 ### Arguments
@@ -48,7 +48,7 @@ To use the classification functionality, it is required to have a cascade file. 
 ### Example
 ```sh
 // Capture every 1000000ns interval on device 0 with a threshold of 15%
-./blink -i=1000000 -t=15 -d=0
+./driver -i=1000000 -t=15 -d=0
 ```
 
 ## Acknowledgements
