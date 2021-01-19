@@ -31,6 +31,8 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 double FTPD(Mat& A, Mat& B, float thrsh);
 double PSNR(Mat& A, Mat& B);
 double SSIM(Mat& A, Mat& B);
+float thrshCalibrate(VideoCapture &cap, int iter, double tolerance);
+float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance);
 
 // Define valid arguments
 static const string args = "{help h || Prints this help message}"

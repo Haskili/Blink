@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 	int blur = parser.get<int>("blur");
 	int mode = parser.get<int>("mode");
 	int tryRotate = parser.get<int>("rotate");
-	double threshold = parser.get<double>("threshold")*0.01;
+	double threshold = parser.get<double>("threshold") * 0.01;
 	double scale = (parser.get<double>("scale"));
 	long interval = stol(parser.get<string>("interval"), 0, 10);
 	string cascPath = parser.get<string>("classifier");
@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 	// e.g Default: 500000000ns -> 500ms -> 0.5s
 	struct timespec ts = {ts.tv_sec = 0, ts.tv_nsec = interval};
 	while (ts.tv_nsec >= 1000000000L)
-		ts.tv_sec++, ts.tv_nsec-=1000000000L;
+		ts.tv_sec++, ts.tv_nsec -= 1000000000L;
 
 	// Open the camera and capture a single image 
 	// after performing error checking on the VideoCapture

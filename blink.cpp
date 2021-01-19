@@ -245,3 +245,101 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 	}
 	return (int)regions.size();
 }
+
+/*
+	thrshCalibrate() returns the calculated threshold value for FTPD()
+	that gets it close to SSIM()'s returned value for the input given
+
+	It does this by slowly changing the threshold for a certain number of
+	iterations or until it reaches the tolerance for inaccuracy;
+	each iteration it compares what the FTPD value is to the SSIM value
+	for that iteration's threshold estimate, and then modifying the
+	estimate accordingly
+*/
+float thrshCalibrate(VideoCapture &cap, int iter, double tolerance) {
+
+	// Setup the structures involved and then initialize the estimated
+	// threshold at 0.025 (2.5%) as a rough guess to start with
+	Mat cIMG, pIMG;
+	double curFTPD = 0.0, curSSIM = 0.0;
+	float estThrsh = 0.025f;
+
+	// Begin iteration loop
+	cap >> pIMG;
+	for (int i = 0; i < iter; i++) {
+
+		// Get an image from the VideoCapture object and use
+		// that for calculating new SSIM & FTPD values
+		cap >> cIMG;
+		curSSIM = SSIM(cIMG, pIMG);
+		curFTPD = FTPD(cIMG, pIMG, estThrsh);
+
+		// If we reached the tolerated level of inaccuracy,
+		// return value for estimated threshold
+		if (abs((curSSIM-curFTPD)/curSSIM) <= tolerance)
+			return estThrsh;
+
+		// Else we need to change the threshold to be either more or
+		// less sensitive using the accuracy of our FTPD measurement
+		// and the current threshold estimate
+		float altValue = estThrsh * (float)(abs((curSSIM-curFTPD)/curSSIM));
+
+		// If the threshold value made it not sensitive enough...
+		if (curFTPD < curSSIM)
+			estThrsh -= altValue;
+
+		// Else if the threshold value made it too sensitive...
+		else if (curFTPD > curSSIM)
+			estThrsh += altValue;
+
+		pIMG = cIMG.clone();
+
+	}
+
+	return estThrsh;
+}
+
+/*
+	thrshCalibrate() returns the calculated threshold value for FTPD()
+	that gets it close to SSIM()'s returned value for the input given
+	
+	This function differs only in that it takes in two images A & B
+	rather than a VideoCapture stream to continually take images from;
+	meaning that while it may be quicker, it is significantly less
+	accurate over the long run
+*/
+float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance) {
+
+	// Setup the structures involved and then initialize the estimated
+	// threshold at 0.025 (2.5%) as a rough guess to start with
+	double curFTPD = 0.0;
+	double curSSIM = SSIM(A, B);
+	float estThrsh = 0.025f;
+
+	// Begin iteration loop
+	for (int i = 0; i < iter; i++) {
+		
+		// Get the current FTPD with the updated threshold
+		curFTPD = FTPD(A, B, estThrsh);
+
+		// If we reached the tolerated level of inaccuracy,
+		// return value for estimated threshold
+		if (abs((curSSIM-curFTPD)/curSSIM) <= tolerance)
+			return estThrsh;
+
+		// Else we need to change the threshold to be either more or
+		// less sensitive using the accuracy of our FTPD measurement
+		// and the current threshold estimate
+		float altValue = estThrsh * (float)(abs((curSSIM-curFTPD)/curSSIM));
+
+		// If the threshold value made it not sensitive enough...
+		if (curFTPD < curSSIM)
+			estThrsh -= altValue;
+
+		// Else if the threshold value made it too sensitive...
+		else if (curFTPD > curSSIM)
+			estThrsh += altValue;
+	}
+
+	return estThrsh;
+}
