@@ -12,9 +12,10 @@ int main(int argc, char* argv[]) {
 	int blur = parser.get<int>("blur");
 	int mode = parser.get<int>("mode");
 	int tryRotate = parser.get<int>("rotate");
+	long int interval = stol(parser.get<string>("interval"), 0, 10);
 	double threshold = parser.get<double>("threshold") * 0.01;
 	double scale = (parser.get<double>("scale"));
-	long interval = stol(parser.get<string>("interval"), 0, 10);
+	float ftpdThresh = parser.get<float>("ftpd") * 0.01f;
 	string cascPath = parser.get<string>("classifier");
 
 	// Setup timer 'ts' for interval between captures
@@ -23,8 +24,8 @@ int main(int argc, char* argv[]) {
 	while (ts.tv_nsec >= 1000000000L)
 		ts.tv_sec++, ts.tv_nsec -= 1000000000L;
 
-	// Open the camera and capture a single image 
-	// after performing error checking on the VideoCapture
+	// Open the camera and capture a single image after 
+	// error checking the VideoCapture setup
 	Mat idIMG, curr, prev;
 	VideoCapture cap;
 	if (!cap.open(devID)) {
@@ -32,7 +33,9 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 	if (!cap.set(cv::CAP_PROP_BUFFERSIZE, 1)) {
-		fprintf(stderr, "ERR set() operation not supported by backend\n");
+		fprintf(stderr, "ERR set() operation not supported by '%s' API\n", 
+			cap.getBackendName());
+
 		return EXIT_FAILURE;
 	}
 	cap >> prev;
@@ -40,13 +43,25 @@ int main(int argc, char* argv[]) {
 	// Load the classifier for identifying object(s) in frame
 	CascadeClassifier cascade;
 	if (!cascade.load(cascPath)) {
-		fprintf(stderr, "ERR load() failed loading '%s'\n", cascPath);
+		fprintf(stderr, "ERR load() failed loading CC '%s'\n", cascPath);
 		return EXIT_FAILURE;
+	}
+
+	// If the FTPD is being used and the threshold wasn't
+	// specified, calculate it now with thrshCalibrate()
+	if (!mode && ftpdThresh < (float)0) {
+
+		// Get threshold and check for bad return
+		ftpdThresh = thrshCalibrate(cap, 300, 0.0000);
+		if (ftpdThresh == EXIT_FAILURE) {
+			fprintf(stderr, "ERR thrshCalibrate() empty capture\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	// Enter main loop for capturing and reading
 	for (int cnum = 0;;) {
-		
+
 		// Wait and then capture an image from the device
 		nanosleep(&ts, NULL);
 		cap >> curr;
@@ -57,7 +72,7 @@ int main(int argc, char* argv[]) {
 
 		// Check for invalid dimensions before comparing
 		if (curr.cols != prev.cols || curr.rows != prev.rows) {
-			fprintf(stderr, "ERR main() bad capture dims\n");
+			fprintf(stderr, "ERR main() bad capture dimensions\n");
 			return EXIT_FAILURE;
 		}
 
@@ -67,7 +82,7 @@ int main(int argc, char* argv[]) {
 			continue;
 
 		// Calculate the difference using specified method
-		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, 0.025f);
+		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, ftpdThresh);
 
 		// Check if the difference percentage between the captures 
 		// excedes the threshold for 'different images'

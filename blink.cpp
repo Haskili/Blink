@@ -271,6 +271,9 @@ float thrshCalibrate(VideoCapture &cap, int iter, double tolerance) {
 		// Get an image from the VideoCapture object and use
 		// that for calculating new SSIM & FTPD values
 		cap >> cIMG;
+		if (cIMG.empty())
+			return EXIT_FAILURE;
+		
 		curSSIM = SSIM(cIMG, pIMG);
 		curFTPD = FTPD(cIMG, pIMG, estThrsh);
 
