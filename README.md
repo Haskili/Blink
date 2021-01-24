@@ -44,6 +44,7 @@ To use the classification functionality, it is required to have a cascade file. 
 * `-r` specifies whether or not to try rotating the image during classification
 * `-s` changes the scale of the image used in classification
 * `-b` specifies whether or not to blur any identifications (people) during classification
+* `-f` specifies the threshold used in FTPD calculation (automatically calculated if not set)
 
 ### Example
 ```sh
