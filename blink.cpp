@@ -1,6 +1,97 @@
 #include "blink.h"
 
 /*
+	deviceProc() is the function called as a detached thread
+	where each device is handled as it's own "Blink" process;
+	Meaning that devices and deviceProc() threads are 1:1
+
+	The general idea is that each thread will be able to write
+	to it's own set of uniquely named images & etc. using it's 
+	device number as part of the name to differentiate itself
+
+	This allows it to avoid certain messy I/O bounded wait times
+	it would have with other implementations
+*/
+void deviceProc(int devID, int blur, int mode, int tryRotate, 
+				double scale, double threshold, double ftpdThresh,
+				struct timespec ts, CascadeClassifier cascade) {
+
+	// Open the camera and capture a single image
+	Mat idIMG, curr, prev;
+	VideoCapture cap;
+	if (!cap.open(devID, CAP_V4L2)) {
+		fprintf(stderr, "ERR open() failed on device '%i'\n", devID);
+		return;
+	}
+	if (!cap.set(CAP_PROP_BUFFERSIZE, 1)) {
+		fprintf(stderr, "ERR set() operation not supported by '%s' API\n",
+				cap.getBackendName());
+
+		return;
+	}
+	cap >> prev;
+
+	// If the FTPD is being used and the threshold wasn't
+	// specified, calculate it now with thrshCalibrate()
+	if (mode == 0 && ftpdThresh < (float)0) {
+
+		// Get threshold and check for bad return
+		ftpdThresh = thrshCalibrate(cap, 300, 0.0000);
+		if (ftpdThresh == EXIT_FAILURE) {
+			fprintf(stderr, "ERR thrshCalibrate() empty capture\n");
+			return;
+		}
+	}
+
+	// Enter loop for capturing and reading from the device
+	for (int cnum = 0;;) {
+
+		// Wait for 'ts' and then capture an image from the device
+		nanosleep(&ts, NULL);
+		cap >> curr;
+		if (curr.empty()) {
+			fprintf(stderr, "ERR empty() capture inside loop\n");
+			return;
+		}
+
+		// Check for non-matching dimensions before comparing
+		if (curr.size != prev.size) {
+			fprintf(stderr, "ERR deviceProc() bad capture dimensions\n");
+			return;
+		}
+
+		// Check if the difference is significant enough
+		// to warrant a thorough difference calculation
+		if (PSNR(curr, prev) > 45.0)
+			continue;
+
+		// Calculate the difference using specified method
+		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, ftpdThresh);
+
+		// Check if the difference percentage between the captures 
+		// excedes the threshold for 'different images'
+		if (diff >= threshold) {
+
+			// Log the event and check for identifiable objects
+			time_t ctime;
+			time(&ctime);
+			fprintf(stdout, "\nID: %i - %sEvent #%i -- %4.2f%% difference\n",
+					devID, asctime(localtime(&ctime)), cnum, diff*100);
+
+			idIMG = curr.clone();
+			fprintf(stdout, "Identified '%i' object(s)...\n\n",
+				detectObj(idIMG, cascade, scale, tryRotate, blur));
+
+			// Write the capture to a seperately saved image and
+			// reset 'prev' for the next comparison
+			char nameBuff[50];
+			sprintf(nameBuff, "device_%i-capture_%i.png", devID, cnum++);
+			prev = curr.clone();
+		}
+	}
+}
+
+/*
 	FTPD() takes in two images A & B, and returns the flat 
 	difference % for all pixels using a given threshold for 
 	what qualifies as enough BRG distance to be considered 

@@ -5,7 +5,7 @@ LIBS = opencv4
 
 driver: driver.o blink.o
 	@echo -e "Linking 'Blink'..."
-	$(CXX) $(FLAGS) -o driver driver.o blink.o $(LINK)
+	$(CXX) $(FLAGS) -o driver driver.o blink.o $(LINK) -pthread
 
 driver.o: driver.cpp blink.h
 	@echo -e "Compiling driver..."

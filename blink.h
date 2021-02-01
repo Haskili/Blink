@@ -17,9 +17,13 @@
 
 // Basic dependencies
 #include <ctime>
+#include <thread>
+#include <sstream>
 
 using namespace cv;
+using std::thread;
 using std::string;
+using std::stringstream;
 using std::vector;
 
 // Define functions
@@ -33,6 +37,9 @@ double PSNR(Mat& A, Mat& B);
 double SSIM(Mat& A, Mat& B);
 float thrshCalibrate(VideoCapture &cap, int iter, double tolerance);
 float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance);
+void deviceProc(int devID, int blur, int mode, int tryRotate, 
+				double scale, double threshold, double ftpdThresh,
+				struct timespec ts, CascadeClassifier cascade);
 
 // Define valid arguments
 static const string args = "{help h || Prints this help message}"
