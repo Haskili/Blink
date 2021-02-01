@@ -27,7 +27,6 @@ using std::stringstream;
 using std::vector;
 
 // Define functions
-int startup(int argc, char* argv[]);
 int fdWait(int seconds, int microseconds);
 int detectObj(Mat& img, CascadeClassifier& cascade,
 			double scale, int rotOpt, int blurOpt);
