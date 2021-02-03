@@ -86,6 +86,7 @@ void deviceProc(int devID, int blur, int mode, int tryRotate,
 			// reset 'prev' for the next comparison
 			char nameBuff[50];
 			sprintf(nameBuff, "device_%i-capture_%i.png", devID, cnum++);
+			imwrite(nameBuff, idIMG);
 			prev = curr.clone();
 		}
 	}
@@ -171,9 +172,9 @@ double PSNR(Mat& A, Mat& B) {
 }
 
 /*
- 	SSIM() returns the structural similarity (SSIM) of two images
+ 	SSIM() returns the (mean) structural similarity (SSIM) of two images
 
-	This function gives the average SSIM calculation across all channels
+	This function gives the mean SSIM calculation across all channels
 	for two images A & B. It's exceptionally time consuming compared to
 	something like PSNR(), and should only be used after a call to
 	PSNR() returns a value exceeding the threshold for 'different images'
@@ -397,10 +398,10 @@ float thrshCalibrate(VideoCapture &cap, int iter, double tolerance) {
 	thrshCalibrate() returns the calculated threshold value for FTPD()
 	that gets it close to SSIM()'s returned value for the input given
 	
-	This function differs only in that it takes in two images A & B
-	rather than a VideoCapture stream to continually take images from;
-	meaning that while it may be quicker, it is significantly less
-	accurate over the long run
+	This function differs from the previous only in that it takes in 
+	two images A & B rather than a VideoCapture stream to continually 
+	take images from; meaning that while it may be quicker, it is 
+	significantly less accurate over the long run
 */
 float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance) {
 
