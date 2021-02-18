@@ -29,20 +29,23 @@ using std::vector;
 // Define functions
 int fdWait(int seconds, int microseconds);
 int detectObj(Mat& img, CascadeClassifier& cascade,
-			double scale, int rotOpt, int blurOpt);
+			double scale, int rotOpt, int minN, int blurOpt);
 
 double FTPD(Mat& A, Mat& B, float thrsh);
 double PSNR(Mat& A, Mat& B);
 double SSIM(Mat& A, Mat& B);
 float thrshCalibrate(VideoCapture &cap, int iter, double tolerance);
 float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance);
-void deviceProc(int devID, int blur, int mode, int tryRotate, 
+void detectCalibrate(VideoCapture cap, CascadeClassifier cascade);
+void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
 				double scale, double threshold, double ftpdThresh,
 				struct timespec ts, CascadeClassifier cascade);
 
+static void calibrationTrackbar(int e, void* data);
+
 // Define valid arguments
 static const string args = "{help h || Prints this help message}"
-	"{scale s |0.5| Set the image scaling to use}"
+	"{scale s |1.1| Set the image scaling to use}"
 	"{device d |0| Get video input from a specific device}"
 	"{blur b |0| Specify whether to blur identified objects}"
 	"{threshold t |15| Set the percent difference threshold for 'events')}"
@@ -50,4 +53,5 @@ static const string args = "{help h || Prints this help message}"
 	"{mode m |0| Set the comparison method (0: FTPD -- 1: SSIM)}"
 	"{classifier c |./hc_ff.xml| Set classifier used in detection}"
 	"{rotate r |0| Specify whether to try rotation during detection}"
-	"{interval i |500000000| Set interval (ns) between capturing frames}";
+	"{interval i |500000000| Set interval (ns) between capturing frames}"
+	"{neighbours n |2| Set the minumum neighbours for object detection}";

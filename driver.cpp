@@ -10,6 +10,7 @@ int main(int argc, char* argv[]) {
 	}
 	int blur = parser.get<int>("blur");
 	int mode = parser.get<int>("mode");
+	int minN = parser.get<int>("neighbours");
 	int tryRotate = parser.get<int>("rotate");
 	long int interval = stol(parser.get<string>("interval"), 0, 10);
 	double threshold = parser.get<double>("threshold") * 0.01;
@@ -31,8 +32,8 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// Parse the list of devices into 'devices[]', continually
-	// allocating more space as needed for
+	// Parse the list of devices from args into 'devices[]', 
+	// continually allocating more space as needed
 	stringstream dlStream(dlStr);
 	int dlCount = 0;
 	int* devices = (int*)malloc(1*sizeof(int));
@@ -42,15 +43,15 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Create detached threads for all devices except for 
-	// the first, which is called normally as deviceProc(...)
+	// the first, which is called from parent thread as deviceProc(...)
 	for (int i = 1; i < dlCount; i++) {
-		thread thd(deviceProc, devices[i], blur, mode, tryRotate, 
-					scale, threshold, ftpdThresh, ts, cascade);
+		thread thd(deviceProc, devices[i], blur, mode, tryRotate, minN, 
+							scale, threshold, ftpdThresh, ts, cascade);
 
 		thd.detach();
 	}
-	deviceProc(devices[0], blur, mode, tryRotate, scale, 
-				threshold, ftpdThresh, ts, cascade);
+	deviceProc(devices[0], blur, mode, tryRotate, minN,
+				scale, threshold, ftpdThresh, ts, cascade);
 
 	// In the case that the primary device has returned,
 	// return from main() with bad status

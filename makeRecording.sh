@@ -18,9 +18,10 @@ do
 	# to the current '$device'
 	ffmpeg -r 2 -pattern_type glob -i "$device"'-capture_*.png' \
 	        -c:v libx264 -vf fps=25 -pix_fmt yuv420p "$device"'-recording.mp4' \
-	        &> ffmpeg.log < /dev/null 
+	        &>> makeRecording.log < /dev/null
 
 	echo -e "Finished writing for '$device', moving on...\n"
 
 done < "devices.log"
-echo "Completed! Please check 'ffmpeg.log' for information and output."
+echo "Completed! Please check 'makeRecording.log' for information and output."
+rm "devices.log"

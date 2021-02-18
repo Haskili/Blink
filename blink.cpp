@@ -12,7 +12,7 @@
 	This allows it to avoid certain messy I/O bounded wait times
 	it would have with other implementations
 */
-void deviceProc(int devID, int blur, int mode, int tryRotate, 
+void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
 				double scale, double threshold, double ftpdThresh,
 				struct timespec ts, CascadeClassifier cascade) {
 
@@ -80,7 +80,7 @@ void deviceProc(int devID, int blur, int mode, int tryRotate,
 
 			idIMG = curr.clone();
 			fprintf(stdout, "Identified '%i' object(s)...\n\n",
-				detectObj(idIMG, cascade, scale, tryRotate, blur));
+				detectObj(idIMG, cascade, scale, tryRotate, minN, blur));
 
 			// Write the capture to a seperately saved image and
 			// reset 'prev' for the next comparison
@@ -268,7 +268,7 @@ int fdWait(int seconds, int microseconds) {
 	and it returns the identification amount
 */
 int detectObj(Mat& img, CascadeClassifier& cascade,
-			double scale, int rotOpt, int blurOpt) {
+			double scale, int rotOpt, int minN, int blurOpt) {
 
 	// Perform pre-processing steps on 'procIMG'
 	Mat procIMG;
@@ -284,7 +284,7 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 	vector<double> weights;
 	vector<int> levels;
 	cascade.detectMultiScale(procIMG, regions, levels, weights, 
-		1.1, 3, 0, Size(), Size(), true);
+		scale, minN, CASCADE_DO_CANNY_PRUNING, Size(), Size(), true);
 
 	// Try rotating image different ways and searching 
 	// for objects in each different orientation if specified
@@ -295,7 +295,7 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 		// 90 rotation
 		transpose(procIMG, procIMG);
 		cascade.detectMultiScale(procIMG, rx, levels, wx, 
-			1.1, 3, 0, Size(), Size(), true);
+			scale, minN, CASCADE_DO_CANNY_PRUNING, Size(), Size(), true);
 
 		for (size_t i = 0; i < rx.size(); i++)
 			regions.push_back(rx[i]), weights.push_back(wx[i]);
@@ -303,7 +303,7 @@ int detectObj(Mat& img, CascadeClassifier& cascade,
 		// 270 rotation
 		flip(procIMG, procIMG, 1);
 		cascade.detectMultiScale(procIMG, rx, levels, wx, 
-			1.1, 3, 0, Size(), Size(), true);
+			scale, minN, CASCADE_DO_CANNY_PRUNING, Size(), Size(), true);
 
 		for (size_t i = 0; i < rx.size(); i++)
 			regions.push_back(rx[i]), weights.push_back(wx[i]);
@@ -437,4 +437,48 @@ float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance) {
 	}
 
 	return estThrsh;
+}
+
+/*
+	The detectCalibrate() function is a basic GUI implementation
+	for allowing the user to calibrate the variables used in the
+	detection process of detectObj()
+
+	At current state, it will not give back the value(s) in any way,
+	but will allow one to calibrate the values manually and record
+	the values used themselves
+*/
+static void calibrationTrackbar(int e, void* data) {
+	// Empty function for detection calibration function 
+	// to use; left open for future developement
+}
+
+void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
+	
+	// Create a image and a window for the trackbars to lie on
+	Mat img;
+	Mat* ip = &img;
+	namedWindow("Calibrate", WINDOW_AUTOSIZE);
+	int scaleMod = 1, minNeighbours = 1;
+
+	// Create two trackbars, one for minimum neighbours and
+	// one for how scaled the image is during detection
+	int a = 3;
+	int* b = &a;
+	createTrackbar("Minimum Neighbours", "Calibrate", 
+					&minNeighbours, 10, calibrationTrackbar, &img);
+	
+	createTrackbar("Image Scaling", "Calibrate", 
+					&scaleMod, 10, calibrationTrackbar, &img);
+
+	// While the user is selecting the values desired, continually
+	// show the video from stream and await input
+	while(1) {
+		cap >> img;
+		detectObj(img, cascade, 1.0+((double)scaleMod/10.0), minNeighbours, 0, 0);
+		imshow("Result", img);
+		char key = (char)waitKey(1);
+		if (key == 'q' || key == 27)
+			break;
+	}
 }
