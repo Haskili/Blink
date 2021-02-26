@@ -80,13 +80,15 @@ void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
 
 			idIMG = curr.clone();
 			fprintf(stdout, "Identified '%i' object(s)...\n\n",
-				detectObj(idIMG, cascade, scale, tryRotate, minN, blur));
+				detectObjHCC(idIMG, cascade, scale, tryRotate, minN, blur));
 
 			// Write the capture to a seperately saved image and
 			// reset 'prev' for the next comparison
 			char nameBuff[50];
 			sprintf(nameBuff, "device_%i-capture_%i.png", devID, cnum++);
 			imwrite(nameBuff, idIMG);
+			//imshow("current_frame.png", idIMG);
+			//waitKey(1);
 			prev = curr.clone();
 		}
 	}
@@ -254,8 +256,9 @@ int fdWait(int seconds, int microseconds) {
 }
 
 /*
-	detectObj() finds objects within an image using a HCC; 
-	it is based off the OpenCV example(s) for cascade classification
+	detectObjHCC() finds objects within an image using a HCC; 
+	It is based off the OpenCV example(s) for classification
+	using Haar-like features
 
 	It will try to find indentifiable objects using a cascade
 	classifier, draw bounding boxes onto ROI's, label each ROI 
@@ -267,8 +270,8 @@ int fdWait(int seconds, int microseconds) {
 	tries multiple rotations, labels each ROI uniquely,
 	and it returns the identification amount
 */
-int detectObj(Mat& img, CascadeClassifier& cascade,
-			double scale, int rotOpt, int minN, int blurOpt) {
+int detectObjHCC(Mat& img, CascadeClassifier& cascade,
+					double scale, int rotOpt, int minN, int blurOpt) {
 
 	// Perform pre-processing steps on 'procIMG'
 	Mat procIMG;
@@ -442,7 +445,7 @@ float thrshCalibrate(Mat& A, Mat& B, int iter, double tolerance) {
 /*
 	The detectCalibrate() function is a basic GUI implementation
 	for allowing the user to calibrate the variables used in the
-	detection process of detectObj()
+	detection process of detectObjHCC()
 
 	At current state, it will not give back the value(s) in any way,
 	but will allow one to calibrate the values manually and record
@@ -455,16 +458,13 @@ static void calibrationTrackbar(int e, void* data) {
 
 void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
 	
-	// Create a image and a window for the trackbars to lie on
+	// Create an image and a window for the trackbars to lie on
 	Mat img;
-	Mat* ip = &img;
 	namedWindow("Calibrate", WINDOW_AUTOSIZE);
 	int scaleMod = 1, minNeighbours = 1;
 
 	// Create two trackbars, one for minimum neighbours and
 	// one for how scaled the image is during detection
-	int a = 3;
-	int* b = &a;
 	createTrackbar("Minimum Neighbours", "Calibrate", 
 					&minNeighbours, 10, calibrationTrackbar, &img);
 	
@@ -475,10 +475,146 @@ void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
 	// show the video from stream and await input
 	while(1) {
 		cap >> img;
-		detectObj(img, cascade, 1.0+((double)scaleMod/10.0), minNeighbours, 0, 0);
+		detectObjHCC(img, cascade, 1.0+((double)scaleMod/10.0), minNeighbours, 0, 0);
 		imshow("Result", img);
 		char key = (char)waitKey(1);
 		if (key == 'q' || key == 27)
 			break;
 	}
+}
+
+/*
+	detectObjSSD() is used to determine what type of things are 
+	in an image given and where those things might be using a 
+	Single-Shot-Detector (SSD). It also performs a small but 
+	powerful algorithim to determine and infer distances of
+	detected people to see if they are far enough apart.
+
+	The SSD is significantly more efficient and accurate in 
+	certain scenarios than the Haar-Cascade Classifier used 
+	in the other detection function. However, there are 
+	multiple pitfalls, and it does not fit all use cases.
+
+	It is advised that the user try both methods to see what 
+	works best for their particular use case(s).
+*/
+int detectObjSSD(const string* classNames, int CLSize, int hID, 
+					Mat& frame, Mat& resultIMG, dnn::Net& net) {
+
+	// Resize the input image, 'frame'
+	Mat frame_resized;
+	resultIMG = frame.clone();
+	resize(frame, frame_resized, Size(300, 300), 0, 0, INTER_CUBIC);
+
+	// Get a blob from the resized input and set
+	// the network input to the returned blob
+	Mat blob = dnn::blobFromImage(frame_resized, 0.007843, Size(300, 300), 
+									Scalar(127.5, 127.5, 127.5), false);
+
+	net.setInput(blob);
+	
+	// Get prediction(s) of the network
+	//
+	// NOTE: The 'detections' is a 32FC1 with 4 total dimensions,
+	//		 requiring another matrix 'detTF' ('detections 3D/4D')
+	//		 to access [0, 0, i, 1..6] in a semi-reasonable manner
+	//
+	Mat detections = net.forward();
+	Mat detTF(detections.size[2], detections.size[3], 
+				CV_32F, detections.ptr<float>());
+
+	// For all POSSIBLE detections...
+	int detectHits = 0;
+	for (int i = 0; i < detections.size[2]; i++) {
+
+		// Get the confidence value and 
+		// if it's above the threshold...
+		float conf = *detTF.ptr<float>(i,2);
+		if (conf >= 0.40f) {
+
+			// Check class index of identification for valid entry
+			int classIndex = (int)(*detTF.ptr<float>(i,1));
+			if (classIndex >= CLSize)
+				continue;
+
+			// Get coordinates of source identification
+			// (needs to be rescaled using frame size)
+			int s_xLB = (int)(*detTF.ptr<float>(i,3) * frame.cols);
+			int s_xRT = (int)(*detTF.ptr<float>(i,5) * frame.cols);
+			int s_yLB = (int)(*detTF.ptr<float>(i,4) * frame.rows);
+			int s_yRT = (int)(*detTF.ptr<float>(i,6) * frame.rows);
+
+			// Draw ROI and associated information onto the image
+			rectangle(resultIMG, Point(s_xRT, s_yRT), Point(s_xLB, s_yLB), 
+						Scalar(0,255,0), 2, 8, 0);
+
+			char buf[50];
+			sprintf(buf, "ID#%i %s: %f%%", ++detectHits, 
+						classNames[classIndex].c_str(), conf);
+			
+			putText(resultIMG, buf, Point(s_xLB+5, s_yLB-5), 
+						3, 0.5, Scalar(0,255,0));
+
+			// Check for distance violations if the current 
+			// identification is a human
+			if (classIndex != hID)
+				continue;
+
+			// For every other ("target") identification...
+			for (int j = 0; j < detections.size[2]; j++) {
+				
+				// Check for target confidence
+				if (*detTF.ptr<float>(j,2) < 0.40f)
+					continue;
+
+				// Check that we're going TO a TARGET that's human
+				// and not the SOURCE we're looking FROM
+				if (j == i || (int)(*detTF.ptr<float>(j,1)) != hID)
+					continue;
+
+				// Get coordinates of identification
+				int t_xLB = (int)(*detTF.ptr<float>(j,3) * frame.cols);
+				int t_xRT = (int)(*detTF.ptr<float>(j,5) * frame.cols);
+				int t_yLB = (int)(*detTF.ptr<float>(j,4) * frame.rows);
+				int t_yRT = (int)(*detTF.ptr<float>(j,6) * frame.rows);
+
+				// Get the target ROI and source ROI coordinates as points
+				Point target = Point(((t_xLB+t_xRT)/2), ((t_yLB+t_yRT)/2));
+				Point source = Point(((s_xLB+s_xRT)/2), ((s_yLB+s_yRT)/2));
+
+				// Get distance in Y-AXIS & X-AXIS of the two ROI's from eachother
+				int yDistance = abs(((t_yLB+t_yRT)/2) - ((s_yLB+s_yRT)/2));
+				int xDistance = abs(((t_xLB+t_xRT)/2) - ((s_xLB+s_xRT)/2));
+				
+				// Get distance that uses each ROI's relative height 
+				// averaged to determine the "minimum safe distance"
+				//
+				// NOTE:   Height_Relative = (Top Y - Bottom Y)/2
+				//		 Distance_Required = (HR_Source + HR_Target)/2  
+				//
+				int distanceReq = ((t_yRT - t_yLB) + (s_yRT - s_yLB))/2;
+
+				// Check if percent difference between height/width of ROI's is >= 60%
+				// e.g. high values COULD indicate a large difference in Z-axis
+				double PDY = 100.0*((double)abs((t_yRT-t_yLB)-(s_yRT-s_yLB))
+							    		/(double)(distanceReq));
+
+				double PDX = 100.0*((double)abs((t_xRT-t_xLB)-(s_xRT-s_xLB))
+										/(double)(distanceReq));
+
+				if (PDY >= 60.0 || PDX >= 60.0)
+					continue;
+
+				// NOTE: The below condition(s) work well for forward facing views, 
+				//		 and best when looking from above at a downward angle
+				//
+				if (xDistance < distanceReq && yDistance < distanceReq)
+					line(resultIMG, target, source, Scalar(0, 0, 255), 2, 8);
+
+				else
+					line(resultIMG, target, source, Scalar(255, 0, 0), 2, 8);
+			}
+		}
+	}
+	return detectHits;
 }

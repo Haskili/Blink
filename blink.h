@@ -14,6 +14,7 @@
 
 // OCV HR dependencies
 #include <opencv2/objdetect.hpp>
+#include <opencv2/dnn.hpp>
 
 // Basic dependencies
 #include <ctime>
@@ -28,8 +29,11 @@ using std::vector;
 
 // Define functions
 int fdWait(int seconds, int microseconds);
-int detectObj(Mat& img, CascadeClassifier& cascade,
-			double scale, int rotOpt, int minN, int blurOpt);
+int detectObjHCC(Mat& img, CascadeClassifier& cascade,
+					double scale, int rotOpt, int minN, int blurOpt);
+
+int detectObjSSD(const string* classNames, int CLSize, int hID, 
+					Mat& frame, Mat& resultIMG, dnn::Net& net);
 
 double FTPD(Mat& A, Mat& B, float thrsh);
 double PSNR(Mat& A, Mat& B);
