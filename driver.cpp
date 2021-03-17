@@ -8,29 +8,27 @@ int main(int argc, char* argv[]) {
 		parser.printMessage();
 		return EXIT_SUCCESS;
 	}
+
+	// Get value of each argument available in 'parser'
 	int blur = parser.get<int>("blur");
-	int mode = parser.get<int>("mode");
+	int mode = parser.get<int>("method");
 	int minN = parser.get<int>("neighbours");
 	int tryRotate = parser.get<int>("rotate");
+	int detectionType = parser.get<int>("type");
+	int hLID = parser.get<int>("humanLID");
 	long int interval = stol(parser.get<string>("interval"), 0, 10);
 	double threshold = parser.get<double>("threshold") * 0.01;
 	double scale = (parser.get<double>("scale"));
-	float ftpdThresh = parser.get<float>("ftpd") * 0.01f;
-	string cascPath = parser.get<string>("classifier");
+	float ftpdThresh = parser.get<float>("fthresh") * 0.01f;
+	string filePath = parser.get<string>("classifier");
 	string dlStr = parser.get<string>("device");
+	string ifStr = parser.get<string>("type");
 
 	// Setup timer 'ts' for interval between captures
 	// e.g Default: 500000000ns -> 500ms -> 0.5s
 	struct timespec ts = {ts.tv_sec = 0, ts.tv_nsec = interval};
 	while (ts.tv_nsec >= 1000000000L)
 		ts.tv_sec++, ts.tv_nsec -= 1000000000L;
-
-	// Load the classifier for identifying object(s) in frame
-	CascadeClassifier cascade;
-	if (!cascade.load(cascPath)) {
-		fprintf(stderr, "ERR load() failed loading '%s'\n", cascPath);
-		return EXIT_FAILURE;
-	}
 
 	// Parse the list of devices from args into 'devices[]', 
 	// continually allocating more space as needed
@@ -42,16 +40,63 @@ int main(int argc, char* argv[]) {
 		devices[dlCount++] = stoi(tkn);
 	}
 
-	// Create detached threads for all devices except for 
-	// the first, which is called from parent thread as deviceProc(...)
+	// Based on the arguments, load in the files for a HCC 
+	// or a SSD or output an error for bad args
+	dnn::Net net;
+	CascadeClassifier cascade;
+	vector<string> SSDLabels;
+	if (detectionType == DT_SSD) {
+
+		// Seperate out the input into two distinct file paths
+		stringstream ifStream(filePath);
+		string filePrimary, fileSecondary, fileTeritary;
+		getline(ifStream, filePrimary, ',');
+		getline(ifStream, fileSecondary, ',');
+		getline(ifStream, fileTeritary, ',');
+
+		// Read in the network-related files
+		// NOTE:
+		//			e.g.    .prototxt    .caffemodel
+		net = dnn::readNet(filePrimary, fileSecondary);
+
+		// Take in labels from given file
+		std::ifstream lfile(fileTeritary);
+		for (string tkn; getline(lfile, tkn); SSDLabels.push_back(tkn));
+	}
+
+	else if (detectionType == DT_HCC) {
+		if (!cascade.load(filePath)) {
+			fprintf(stderr, "ERR load() failed loading '%s'\n", filePath);
+			return EXIT_FAILURE;
+		}
+	}
+
+	// Launch detached threads for each [1..n] cameras based 
+	// on what type of detector the user specified in the
+	// argument by calling the threads with deviceProc(...)
 	for (int i = 1; i < dlCount; i++) {
-		thread thd(deviceProc, devices[i], blur, mode, tryRotate, minN, 
-							scale, threshold, ftpdThresh, ts, cascade);
+		thread thd;
+
+		if (detectionType == DT_SSD)
+			thd = thread(deviceProcSSD, devices[i], mode, threshold, 
+								ftpdThresh, hLID, ts, net, SSDLabels);
+
+		else
+			thd = thread(deviceProcHCC, devices[i], blur, mode, tryRotate,
+						minN, scale, threshold, ftpdThresh, ts, cascade);
 
 		thd.detach();
 	}
-	deviceProc(devices[0], blur, mode, tryRotate, minN,
-				scale, threshold, ftpdThresh, ts, cascade);
+
+	// Launch the primary camera from the parent thread
+	// using the correct deviceProc(...)
+	if (detectionType == DT_SSD)
+		deviceProcSSD(devices[0], mode, threshold, ftpdThresh, 
+						hLID, ts, net, SSDLabels);
+
+	else
+		deviceProcHCC(devices[0], blur, mode, tryRotate, minN,
+						scale, threshold, ftpdThresh, ts, cascade);
 
 	// In the case that the primary device has returned,
 	// return from main() with bad status

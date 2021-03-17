@@ -12,9 +12,9 @@
 	This allows it to avoid certain messy I/O bounded wait times
 	it would have with other implementations
 */
-void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
-				double scale, double threshold, double ftpdThresh,
-				struct timespec ts, CascadeClassifier cascade) {
+void deviceProcHCC(int devID, int blur, int mode, int rotOpt, int minN,
+					double scale, double threshold, double ftpdThresh,
+					struct timespec ts, CascadeClassifier cascade) {
 
 	// Open the camera and capture a single image
 	Mat idIMG, curr, prev;
@@ -44,7 +44,7 @@ void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
 	}
 
 	// Enter loop for capturing and reading from the device
-	for (int cnum = 0;;) {
+	for (int event = 0;;) {
 
 		// Wait for 'ts' and then capture an image from the device
 		nanosleep(&ts, NULL);
@@ -72,23 +72,176 @@ void deviceProc(int devID, int blur, int mode, int tryRotate, int minN,
 		// excedes the threshold for 'different images'
 		if (diff >= threshold) {
 
-			// Log the event and check for identifiable objects
+			// Log the event
 			time_t ctime;
 			time(&ctime);
 			fprintf(stdout, "\nID: %i - %sEvent #%i -- %4.2f%% difference\n",
-					devID, asctime(localtime(&ctime)), cnum, diff*100);
+					devID, asctime(localtime(&ctime)), event, diff*100);
 
-			idIMG = curr.clone();
+			// Check for identifiable objects
 			fprintf(stdout, "Identified '%i' object(s)...\n\n",
-				detectObjHCC(idIMG, cascade, scale, tryRotate, minN, blur));
+				detectObjHCC(curr, idIMG, cascade, scale, rotOpt, minN, blur));
 
 			// Write the capture to a seperately saved image and
 			// reset 'prev' for the next comparison
 			char nameBuff[50];
-			sprintf(nameBuff, "device_%i-capture_%i.png", devID, cnum++);
+			sprintf(nameBuff, "device_%i-capture_%i.png", devID, event++);
 			imwrite(nameBuff, idIMG);
-			//imshow("current_frame.png", idIMG);
-			//waitKey(1);
+			prev = curr.clone();
+		}
+	}
+}
+
+void deviceProcSSD(int devID, int mode,  double threshold, 
+					double ftpdThresh, int hID, struct timespec ts, 
+					dnn::Net net, vector<string> classesSSD) {
+
+	// Open the camera and capture a single image
+	Mat idIMG, curr, prev;
+	VideoCapture cap;
+	if (!cap.open(devID, CAP_V4L2)) {
+		fprintf(stderr, "ERR open() failed on device '%i'\n", devID);
+		return;
+	}
+	if (!cap.set(CAP_PROP_BUFFERSIZE, 1)) {
+		fprintf(stderr, "ERR set() operation not supported by '%s' API\n",
+				cap.getBackendName());
+
+		return;
+	}
+	cap >> prev;
+
+	// If the FTPD is being used and the threshold wasn't
+	// specified, calculate it now with thrshCalibrate()
+	if (mode == 0 && ftpdThresh < (float)0) {
+
+		// Get threshold and check for bad return
+		ftpdThresh = thrshCalibrate(cap, 300, 0.0000);
+		if (ftpdThresh == EXIT_FAILURE) {
+			fprintf(stderr, "ERR thrshCalibrate() empty capture\n");
+			return;
+		}
+	}
+
+	// Enter loop for capturing and reading from the device
+	for (int event = 0, lblSz = (int)classesSSD.size();;) {
+
+		// Wait for 'ts' and then capture an image from the device
+		nanosleep(&ts, NULL);
+		cap >> curr;
+		if (curr.empty()) {
+			fprintf(stderr, "ERR empty() capture inside loop\n");
+			return;
+		}
+
+		// Check for non-matching dimensions before comparing
+		if (curr.size != prev.size) {
+			fprintf(stderr, "ERR deviceProc() bad capture dimensions\n");
+			return;
+		}
+
+		// Check if the difference is significant enough
+		// to warrant a thorough difference calculation
+		if (PSNR(curr, prev) > 45.0)
+			continue;
+
+		// Calculate the difference using specified method
+		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, ftpdThresh);
+
+		// Check if the difference percentage between the captures 
+		// excedes the threshold for 'different images'
+		if (diff >= threshold) {
+
+			// Log the event
+			time_t ctime;
+			time(&ctime);
+			fprintf(stdout, "\nID: %i - %sEvent #%i -- %4.2f%% difference\n",
+					devID, asctime(localtime(&ctime)), event, diff*100);
+
+			// Check for identifiable objects
+			fprintf(stdout, "Identified '%i' object(s)...\n\n",
+				detectObjSSD(classesSSD, lblSz, hID, curr, idIMG, net));
+
+			// Write the capture to a seperately saved image and
+			// reset 'prev' for the next comparison
+			char nameBuff[50];
+			sprintf(nameBuff, "device_%i-capture_%i.png", devID, event++);
+			imwrite(nameBuff, idIMG);
+			prev = curr.clone();
+		}
+	}
+}
+
+void deviceProcNA(int devID, int mode, double threshold, 
+					double ftpdThresh, struct timespec ts) {
+
+	// Open the camera and capture a single image
+	Mat curr, prev;
+	VideoCapture cap;
+	if (!cap.open(devID, CAP_V4L2)) {
+		fprintf(stderr, "ERR open() failed on device '%i'\n", devID);
+		return;
+	}
+	if (!cap.set(CAP_PROP_BUFFERSIZE, 1)) {
+		fprintf(stderr, "ERR set() operation not supported by '%s' API\n",
+				cap.getBackendName());
+
+		return;
+	}
+	cap >> prev;
+
+	// If the FTPD is being used and the threshold wasn't
+	// specified, calculate it now with thrshCalibrate()
+	if (mode == 0 && ftpdThresh < (float)0) {
+
+		// Get threshold and check for bad return
+		ftpdThresh = thrshCalibrate(cap, 300, 0.0000);
+		if (ftpdThresh == EXIT_FAILURE) {
+			fprintf(stderr, "ERR thrshCalibrate() empty capture\n");
+			return;
+		}
+	}
+
+	// Enter loop for capturing and reading from the device
+	for (int event = 0;;) {
+
+		// Wait for 'ts' and then capture an image from the device
+		nanosleep(&ts, NULL);
+		cap >> curr;
+		if (curr.empty()) {
+			fprintf(stderr, "ERR empty() capture inside loop\n");
+			return;
+		}
+
+		// Check for non-matching dimensions before comparing
+		if (curr.size != prev.size) {
+			fprintf(stderr, "ERR deviceProc() bad capture dimensions\n");
+			return;
+		}
+
+		// Check if the difference is significant enough
+		// to warrant a thorough difference calculation
+		if (PSNR(curr, prev) > 45.0)
+			continue;
+
+		// Calculate the difference using specified method
+		double diff = mode? SSIM(curr, prev):FTPD(curr, prev, ftpdThresh);
+
+		// Check if the difference percentage between the captures 
+		// excedes the threshold for 'different images'
+		if (diff >= threshold) {
+
+			// Log the event
+			time_t ctime;
+			time(&ctime);
+			fprintf(stdout, "\nID: %i - %sEvent #%i -- %4.2f%% difference\n\n",
+					devID, asctime(localtime(&ctime)), event, diff*100);
+
+			// Write the capture to a seperately saved image and
+			// reset 'prev' for the next comparison
+			char nameBuff[50];
+			sprintf(nameBuff, "device_%i-capture_%i.png", devID, event++);
+			imwrite(nameBuff, curr);
 			prev = curr.clone();
 		}
 	}
@@ -270,12 +423,13 @@ int fdWait(int seconds, int microseconds) {
 	tries multiple rotations, labels each ROI uniquely,
 	and it returns the identification amount
 */
-int detectObjHCC(Mat& img, CascadeClassifier& cascade,
-					double scale, int rotOpt, int minN, int blurOpt) {
+int detectObjHCC(Mat& inIMG, Mat& outIMG, CascadeClassifier& cascade,
+				double scale, int rotOpt, int minN, int blurOpt) {
 
 	// Perform pre-processing steps on 'procIMG'
 	Mat procIMG;
-	cvtColor(img, procIMG, COLOR_BGR2GRAY);
+	outIMG = inIMG.clone();
+	cvtColor(outIMG, procIMG, COLOR_BGR2GRAY);
 	resize(procIMG, procIMG, Size(), 
 		(double)(1/scale), (double)(1/scale), 5);
 
@@ -323,19 +477,19 @@ int detectObjHCC(Mat& img, CascadeClassifier& cascade,
 
 		// Blur if specified to do so
 		if (blurOpt) {
-			Mat maskIMG = img(Range(LY, RY), Range(LX, RX));
+			Mat maskIMG = outIMG(Range(LY, RY), Range(LX, RX));
 			blur(maskIMG, maskIMG, Size(20, 20), Point(-1,-1));
 		}
 		
 		// Draw bounding rectangle to show ROI
-		rectangle(img, Point(RX, RY), Point(LX, LY),
+		rectangle(outIMG, Point(RX, RY), Point(LX, LY),
 				Scalar(0,255,0), 2, 8, 0);
 
 		// Draw text to indicate identification number
 		// and associated weight-value onto the ROI
 		char buf[50];
 		sprintf(buf, "ID #%i: %4.2f", i+1, weights[i]);
-		putText(img, buf, Point(LX + 5, LY - 5), 3, 0.5, 
+		putText(outIMG, buf, Point(LX + 5, LY - 5), 3, 0.5, 
 			Scalar(0,255,0), 0.15*scale, 8, false);
 	}
 	return (int)regions.size();
@@ -461,21 +615,21 @@ void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
 	// Create an image and a window for the trackbars to lie on
 	Mat img;
 	namedWindow("Calibrate", WINDOW_AUTOSIZE);
-	int scaleMod = 1, minNeighbours = 1;
+	int scale = 1, minN = 1;
 
 	// Create two trackbars, one for minimum neighbours and
 	// one for how scaled the image is during detection
 	createTrackbar("Minimum Neighbours", "Calibrate", 
-					&minNeighbours, 10, calibrationTrackbar, &img);
+					&minN, 10, calibrationTrackbar, &img);
 	
 	createTrackbar("Image Scaling", "Calibrate", 
-					&scaleMod, 10, calibrationTrackbar, &img);
+					&scale, 10, calibrationTrackbar, &img);
 
 	// While the user is selecting the values desired, continually
 	// show the video from stream and await input
 	while(1) {
 		cap >> img;
-		detectObjHCC(img, cascade, 1.0+((double)scaleMod/10.0), minNeighbours, 0, 0);
+		detectObjHCC(img, img, cascade, 1.0+((double)scale/10.0), minN, 0, 0);
 		imshow("Result", img);
 		char key = (char)waitKey(1);
 		if (key == 'q' || key == 27)
@@ -498,18 +652,18 @@ void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
 	It is advised that the user try both methods to see what 
 	works best for their particular use case(s).
 */
-int detectObjSSD(const string* classNames, int CLSize, int hID, 
-					Mat& frame, Mat& resultIMG, dnn::Net& net) {
+int detectObjSSD(vector<string> classNames, int CLSize, int hID, 
+				Mat& inIMG, Mat& outIMG, dnn::Net& net) {
 
-	// Resize the input image, 'frame'
-	Mat frame_resized;
-	resultIMG = frame.clone();
-	resize(frame, frame_resized, Size(300, 300), 0, 0, INTER_CUBIC);
+	// Resize the input image, 'inIMG'
+	Mat scaledIMG;
+	outIMG = inIMG.clone();
+	resize(inIMG, scaledIMG, Size(300, 300), 0, 0, INTER_CUBIC);
 
 	// Get a blob from the resized input and set
 	// the network input to the returned blob
-	Mat blob = dnn::blobFromImage(frame_resized, 0.007843, Size(300, 300), 
-									Scalar(127.5, 127.5, 127.5), false);
+	Mat blob = dnn::blobFromImage(scaledIMG, 0.007843, Size(300, 300), 
+					Scalar(127.5, 127.5, 127.5), false);
 
 	net.setInput(blob);
 	
@@ -538,21 +692,21 @@ int detectObjSSD(const string* classNames, int CLSize, int hID,
 				continue;
 
 			// Get coordinates of source identification
-			// (needs to be rescaled using frame size)
-			int s_xLB = (int)(*detTF.ptr<float>(i,3) * frame.cols);
-			int s_xRT = (int)(*detTF.ptr<float>(i,5) * frame.cols);
-			int s_yLB = (int)(*detTF.ptr<float>(i,4) * frame.rows);
-			int s_yRT = (int)(*detTF.ptr<float>(i,6) * frame.rows);
+			// (needs to be rescaled using inIMG size)
+			int s_xLB = (int)(*detTF.ptr<float>(i,3) * inIMG.cols);
+			int s_xRT = (int)(*detTF.ptr<float>(i,5) * inIMG.cols);
+			int s_yLB = (int)(*detTF.ptr<float>(i,4) * inIMG.rows);
+			int s_yRT = (int)(*detTF.ptr<float>(i,6) * inIMG.rows);
 
 			// Draw ROI and associated information onto the image
-			rectangle(resultIMG, Point(s_xRT, s_yRT), Point(s_xLB, s_yLB), 
+			rectangle(outIMG, Point(s_xRT, s_yRT), Point(s_xLB, s_yLB), 
 						Scalar(0,255,0), 2, 8, 0);
 
 			char buf[50];
 			sprintf(buf, "ID#%i %s: %f%%", ++detectHits, 
 						classNames[classIndex].c_str(), conf);
 			
-			putText(resultIMG, buf, Point(s_xLB+5, s_yLB-5), 
+			putText(outIMG, buf, Point(s_xLB+5, s_yLB-5), 
 						3, 0.5, Scalar(0,255,0));
 
 			// Check for distance violations if the current 
@@ -573,16 +727,18 @@ int detectObjSSD(const string* classNames, int CLSize, int hID,
 					continue;
 
 				// Get coordinates of identification
-				int t_xLB = (int)(*detTF.ptr<float>(j,3) * frame.cols);
-				int t_xRT = (int)(*detTF.ptr<float>(j,5) * frame.cols);
-				int t_yLB = (int)(*detTF.ptr<float>(j,4) * frame.rows);
-				int t_yRT = (int)(*detTF.ptr<float>(j,6) * frame.rows);
+				int t_xLB = (int)(*detTF.ptr<float>(j,3) * inIMG.cols);
+				int t_xRT = (int)(*detTF.ptr<float>(j,5) * inIMG.cols);
+				int t_yLB = (int)(*detTF.ptr<float>(j,4) * inIMG.rows);
+				int t_yRT = (int)(*detTF.ptr<float>(j,6) * inIMG.rows);
 
-				// Get the target ROI and source ROI coordinates as points
+				// Get the target ROI and source ROI coordinates 
+				// as seperate coordinate points
 				Point target = Point(((t_xLB+t_xRT)/2), ((t_yLB+t_yRT)/2));
 				Point source = Point(((s_xLB+s_xRT)/2), ((s_yLB+s_yRT)/2));
 
-				// Get distance in Y-AXIS & X-AXIS of the two ROI's from eachother
+				// Get distance in Y-AXIS & X-AXIS of the two ROI's 
+				// from eachother
 				int yDistance = abs(((t_yLB+t_yRT)/2) - ((s_yLB+s_yRT)/2));
 				int xDistance = abs(((t_xLB+t_xRT)/2) - ((s_xLB+s_xRT)/2));
 				
@@ -594,25 +750,27 @@ int detectObjSSD(const string* classNames, int CLSize, int hID,
 				//
 				int distanceReq = ((t_yRT - t_yLB) + (s_yRT - s_yLB))/2;
 
-				// Check if percent difference between height/width of ROI's is >= 60%
-				// e.g. high values COULD indicate a large difference in Z-axis
+				// Check if percent difference between height/width 
+				// of ROI's is >= 60%, as high values COULD indicate 
+				// a large difference in Z-axis
 				double PDY = 100.0*((double)abs((t_yRT-t_yLB)-(s_yRT-s_yLB))
-							    		/(double)(distanceReq));
+							    	/(double)(distanceReq));
 
 				double PDX = 100.0*((double)abs((t_xRT-t_xLB)-(s_xRT-s_xLB))
-										/(double)(distanceReq));
+								/(double)(distanceReq));
 
 				if (PDY >= 60.0 || PDX >= 60.0)
 					continue;
 
-				// NOTE: The below condition(s) work well for forward facing views, 
-				//		 and best when looking from above at a downward angle
+				// NOTE: The below condition(s) work well for 
+				// 		 forward facing views and best when 
+				// 		 looking from above at a downward angle
 				//
 				if (xDistance < distanceReq && yDistance < distanceReq)
-					line(resultIMG, target, source, Scalar(0, 0, 255), 2, 8);
+					line(outIMG, target, source, Scalar(0, 0, 255), 2, 8);
 
 				else
-					line(resultIMG, target, source, Scalar(255, 0, 0), 2, 8);
+					line(outIMG, target, source, Scalar(255, 0, 0), 2, 8);
 			}
 		}
 	}
