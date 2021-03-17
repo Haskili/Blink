@@ -23,6 +23,7 @@ Each time that happens, the program then identifies objects in the image and the
 </p>
 
 Finally, it will alert the user as to the time of the event, event number, and then saves this image to a separate file labeled with that event number.
+<br></br>
 
 ## Requirements
 
@@ -36,6 +37,7 @@ Please see dependencies listed [here](https://www.archlinux.org/packages/extra/x
 To use the Haar-Cascade Classification functionality it is required to have a cascade file. In my own testing, I used the cascade file created by Rainer Lienhart that comes with `opencv-samples` from the [AUR](https://www.archlinux.org/packages/extra/x86_64/opencv-samples/) for front-facing human faces. These files are also available [here](https://github.com/opencv/opencv/blob/master/data/haarcascades/), in the OpenCV repository.
 
 Alternatively, to use the Single-Shot-Detector functionality it is required to have the class labels as well as both the model and network configuration in whatever file format you choose. Please see the [documentation](https://docs.opencv.org/master/d6/d0f/group__dnn.html#ga3b34fe7a29494a6a4295c169a7d32422) for information on supported backends in OpenCV. A good place to look for these is the [Model Zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md) and the [Tensor Flow](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md) repositories. Depending on what you use, you will need to set the scaling for your images and mean value used in the SSD. In my own testing, I've used MobileNet, which has performed well in general application.
+<br></br>
 
 ## Usage
 
@@ -45,9 +47,7 @@ Alternatively, to use the Single-Shot-Detector functionality it is required to h
 ```sh
 ./driver -<MULTI-VALUE-OPTION>=<VALUE>,<VALUE>,...
 ```
-
-### Example
-Capture an image every 1000000ns interval on devices 0 & 2 with a percent difference threshold of 15%
+e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent difference threshold of 15%
 ```sh
 ./driver -i=1000000 -t=15 -d=0,2
 ```
@@ -67,6 +67,8 @@ Capture an image every 1000000ns interval on devices 0 & 2 with a percent differ
 |`s` (req: HCC)	        |scale     | Set the image scaling to use for HCC detection		      		                                         |
 |`b` (req: HCC)	        |blur  	   | Specify whether to blur identified objects for HCC		      		                                     |
 |`r` (req: HCC)	        |rotation  | Specify whether to try rotation for HCC			      		                                         |
+
+<br></br>
 
 ## Acknowledgements
 *'Blink'* was originally meant as a educational resource for OpenCV that turned into my Senior Project, and as such is heavily commented. There may  certain sections with lengthy and overly verbose documentation.
