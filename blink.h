@@ -30,6 +30,7 @@
 #include <fstream>
 #include <atomic>
 #include <csignal>
+#include <mutex>
 
 using namespace cv;
 using std::thread;
@@ -78,3 +79,7 @@ static const string args = "{help h || Prints this help message}"
 
 // Interupt flag for threads to abort
 static std::atomic_bool signalFlag;
+
+// Mutex lock for the non-thread-safe
+// section of detectObjSSD()
+static std::mutex m;

@@ -6,6 +6,7 @@ LIBS = opencv4
 driver: driver.o blink.o
 	@echo "Linking 'Blink'..."
 	$(CXX) $(FLAGS) -o driver driver.o blink.o $(LINK) -pthread
+	@mkdir -p captures
 
 driver.o: driver.cpp blink.h
 	@echo "Compiling driver..."
@@ -21,5 +22,5 @@ recording:
 	@./makeRecording.sh
 
 clean:
-	@echo "Removing object files, executables, and capture.png files from directory..."
-	rm -rf ./*.o ./driver ./*.png
+	@echo "Removing object files, executables, and capture.png files from the directory..."
+	rm -rf ./*.o ./driver ./captures/*.png

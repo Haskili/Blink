@@ -73,7 +73,7 @@ void deviceProc(int devID, int blur, int mode, int rotOpt, int minN,
         // Check if the PSNR value is significant enough
         // to warrant a thorough difference calculation
         if (PSNR(cIMG, pIMG) > 45.0)
-            continue;
+        	continue;
 
         // Calculate the difference using specified method
         double diff = mode? SSIM(cIMG, pIMG):FTPD(cIMG, pIMG, ftpdThresh);
@@ -97,7 +97,7 @@ void deviceProc(int devID, int blur, int mode, int rotOpt, int minN,
             // use the HCC to detect objects in the image
             else if (detectionType == DT_HCC)
                 detections = detectObjHCC(cIMG, idIMG, cascade, scale,
-                                                    rotOpt, minN, blur);
+                                                  rotOpt, minN, blur);
 
             // Log the event information
             lf << ("EVENT_" + std::to_string(event)) 
@@ -110,7 +110,7 @@ void deviceProc(int devID, int blur, int mode, int rotOpt, int minN,
 
             // Write the captured frame to a seperately saved image and
             // reset 'pIMG' to 'cIMG' for the next comparison
-            sprintf(buffer, "device_%i-capture_%i.png", devID, event++);
+            sprintf(buffer, "captures/DEV_%i-CAP_%i.png", devID, event++);
             imwrite(buffer, idIMG);
             pIMG = cIMG.clone();
         }
@@ -245,11 +245,14 @@ double SSIM(Mat& A, Mat& B) {
     sigX -= XAvgSQD, sigY -= YAvgSQD, sigZ -= ZAvgSQD;
 
     // Calculate the numerator and denominator
-    // (See definitions at top of file for C1 & C2)
-    Mat num = (2 * ZAvgSQD + C1), den = (XAvgSQD + YAvgSQD + C1);
-    num = num.mul((2 * sigZ + C2));
-    den = den.mul((sigX + sigY + C2));
+    // (See definitions at top of header file for C1 & C2)
+    Mat num, den;
+    num = ZAvgSQD.mul(2) + Scalar(C1, C1, C1);
+    den = XAvgSQD + YAvgSQD + Scalar(C1, C1, C1);
 
+    num = num.mul(sigZ.mul(2) + Scalar(C2, C2, C2));
+    den = den.mul(sigX + sigY + Scalar(C2, C2, C2));
+    
     // Divide the two and find the Scalar mean() of that matrix
     Mat ret;
     divide(num, den, ret);
@@ -504,7 +507,7 @@ void detectCalibrate(VideoCapture cap, CascadeClassifier cascade) {
     // show the video from stream and await input
     while(1) {
         cap >> img;
-        detectObjHCC(img, img, cascade, 1.0+((double)scale/10.0), minN, 0, 0);
+        detectObjHCC(img, img, cascade, 1.0 +((double)scale/10.0), minN, 0, 0);
         imshow("Result", img);
         char key = (char)waitKey(1);
         if (key == 'q' || key == 27)
@@ -538,19 +541,25 @@ int detectObjSSD(vector<string> classNames, int CLSize, int hID,
     // Get a blob from the resized input and set
     // the network input to the returned blob
     Mat blob = dnn::blobFromImage(scaledIMG, 0.007843, Size(300, 300), 
-                    Scalar(127.5, 127.5, 127.5), false);
+                                  Scalar(127.5, 127.5, 127.5), false);
 
     net.setInput(blob);
-    
+
     // Get prediction(s) of the network
     //
     // NOTE: The 'detections' is a 32FC1 with 4 total dimensions,
     //       requiring another matrix 'detTF' ('detections 3D/4D')
     //       to access [0, 0, i, 1..6] in a semi-reasonable manner
     //
+    //       There's a mutex lock on dnn::forward() because 
+    //       it isn't thread-safe
+    //
+    m.lock();
     Mat detections = net.forward();
     Mat detTF(detections.size[2], detections.size[3], 
-                CV_32F, detections.ptr<float>());
+              CV_32F, detections.ptr<float>());
+
+    m.unlock();
 
     // For all POSSIBLE detections...
     int detectHits = 0;
@@ -580,7 +589,7 @@ int detectObjSSD(vector<string> classNames, int CLSize, int hID,
             char buf[50];
             sprintf(buf, "ID#%i %s: %f%%", ++detectHits, 
                         classNames[classIndex].c_str(), conf);
-            
+
             putText(outIMG, buf, Point(s_xLB+5, s_yLB-5), 
                         3, 0.5, Scalar(0,255,0));
 
@@ -632,7 +641,7 @@ int detectObjSSD(vector<string> classNames, int CLSize, int hID,
                                     /(double)(distanceReq));
 
                 double PDX = 100.0*((double)abs((t_xRT-t_xLB)-(s_xRT-s_xLB))
-                                /(double)(distanceReq));
+                                    /(double)(distanceReq));
 
                 if (PDY >= 60.0 || PDX >= 60.0)
                     continue;

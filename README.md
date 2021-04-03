@@ -1,4 +1,3 @@
-  
 <h1 align="center">Blink</h1> 
   <p align="center">
   <img src="https://i.imgur.com/zB2YVNx.png"  alt="blink-icon"  width="100"  height="70"><br>
@@ -33,7 +32,9 @@ pacman -S opencv (optional dependencies)
 ```
 Please see dependencies listed [here](https://www.archlinux.org/packages/extra/x86_64/opencv/).
 <br></br>
+
 **Classification & Detection Files**
+<br></br>
 To use the Haar-Cascade Classification functionality it is required to have a cascade file. In my own testing, I used the cascade file created by Rainer Lienhart that comes with `opencv-samples` from the [AUR](https://www.archlinux.org/packages/extra/x86_64/opencv-samples/) for front-facing human faces. These files are also available [here](https://github.com/opencv/opencv/blob/master/data/haarcascades/), in the OpenCV repository.
 
 Alternatively, to use the Single-Shot-Detector functionality it is required to have the class labels as well as both the model and network configuration in whatever file format you choose. Please see the [documentation](https://docs.opencv.org/master/d6/d0f/group__dnn.html#ga3b34fe7a29494a6a4295c169a7d32422) for information on supported backends in OpenCV. A good place to look for these is the [Model Zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md) and the [Tensor Flow](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md) repositories. Depending on what you use, you will need to set the scaling for your images and mean value used in the SSD. In my own testing, I've used MobileNet, which has performed well in general application.
@@ -58,7 +59,7 @@ e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent d
 |`d`			        |device    | Sets the device used to read frames from		      		                                             |
 |`i`			        |interval  | Sets the interval between capturing frames in units of nanoseconds	                                     |
 |`m`			        |method    | Defines which method of calculating image difference is used (0: FTPD -- 1: SSIM)		      		     |
-|`f` (req: FTPD)        |fthresh   | Set the pixel-difference percentage threshold for FTPD		      		                                 |
+|`f`					|fthresh   | Set the pixel-difference percentage threshold for FTPD		      		                                 |
 |`t`					|threshold | Specify the percent difference threshold to use for what qualifies as 'different images'              |
 |`n`					|type      | Set the detection method (-1: NONE -- 0: SSD -- 1: HCC)                                                 |
 |`c`					|classifier| Set the path to the file(s) used during classification                                                 |
@@ -71,7 +72,7 @@ e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent d
 <br></br>
 
 ## Acknowledgements
-*'Blink'* was originally meant as a educational resource for OpenCV that turned into my Senior Project, and as such is heavily commented. There may  certain sections with lengthy and overly verbose documentation.
+*'Blink'* was originally meant as a educational resource for OpenCV that turned into my Senior Project. As such, it is heavily commented and there may be certain sections with verbose documentation.
 
 A good portion of the comments for `SSIM()` & `PSNR()` refer to the formulas, most if not all of which can be found in the two Wikipedia pages below:
 * [SSIM Wikipedia page](https://en.wikipedia.org/wiki/Structural_similarity)
