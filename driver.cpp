@@ -16,13 +16,13 @@ int main(int argc, char* argv[]) {
     int tryRotate = parser.get<int>("rotate");
     int detectionType = parser.get<int>("type");
     int hLID = parser.get<int>("humanLID");
+    int comp = parser.get<int>("compression");
     long int interval = stol(parser.get<string>("interval"), 0, 10);
     double threshold = parser.get<double>("threshold") * 0.01;
     double scale = (parser.get<double>("scale"));
     float ftpdThresh = parser.get<float>("fthresh") * 0.01f;
     string filePath = parser.get<string>("classifier");
     string dlStr = parser.get<string>("device");
-    string ifStr = parser.get<string>("type");
 
     // Setup timer 'ts' for interval between captures
     // e.g Default: 500000000ns -> 500ms -> 0.5s
@@ -30,22 +30,18 @@ int main(int argc, char* argv[]) {
     while (ts.tv_nsec >= 1000000000L)
         ts.tv_sec++, ts.tv_nsec -= 1000000000L;
 
-    // Parse the list of devices from args into 'devices[]', 
-    // continually allocating more space as needed
+    // Parse the list of devices from args into device list 
     stringstream dlStream(dlStr);
-    int dlCount = 0;
-    int* devices = (int*)malloc(1*sizeof(int));
-    for (string tkn; getline(dlStream, tkn, ',');) {
-        devices = (int*)realloc(devices, (dlCount+1)*sizeof(int));
-        devices[dlCount++] = stoi(tkn);
-    }
+    vector<string> devices;
+    for (string tkn; getline(dlStream, tkn, ',');)
+        devices.push_back(tkn);
 
     // Based on the arguments, check if we need to load in 
     // the files for a Single Shot Detector
     dnn::Net net;
     CascadeClassifier cascade;
     vector<string> SSDLabels;
-    if (detectionType == DT_SSD) {
+    if (detectionType == DT_SSD || detectionType == DT_YOLO) {
 
         // Seperate out the input into two distinct file paths
         stringstream ifStream(filePath);
@@ -73,18 +69,16 @@ int main(int argc, char* argv[]) {
     }
 
     // Launch threads for each [0, n] devices the user specified
-    thread threads[dlCount];
-    for (int i = 0; i < dlCount; i++) {
-        threads[i] = thread(deviceProc, devices[i], blur, mode, tryRotate,
-                            minN, detectionType, hLID, ts, scale, threshold, 
-                            ftpdThresh, cascade, net, SSDLabels);
+    thread threads[(int)devices.size()];
+    for (int i = 0; i < (int)devices.size(); i++) {
+        threads[i] = thread(deviceThread, i, blur, mode, tryRotate, minN, 
+                            detectionType, hLID, comp, ftpdThresh, scale, 
+                            threshold, ts, cascade, net, SSDLabels, devices[i]);
     }
 
-    // Join each device thread
-    for (int i = 0; i < dlCount; i++)
+    // Join each device thread and then return
+    for (int i = 0; i < (int)devices.size(); i++)
         threads[i].join();
 
-    // Free the list of devices used and return
-    free(devices);
     return EXIT_SUCCESS;
 }

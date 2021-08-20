@@ -19,7 +19,7 @@ do
 
 	# Use ffmpeg to write video with capture files relating 
 	# to the current '$device'
-	ffmpeg -r 2 -f image2 -start_number 1 -i "$device-CAP_%d.png" \
+	ffmpeg -r 10 -f image2 -start_number 1 -i "$device-CAP_%d.png" \
 		-c:v libx264 -vf fps=25 -pix_fmt yuv420p "$device-recording.mp4" \
 		&>> makeRecording.log < /dev/null
 
