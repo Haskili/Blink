@@ -68,7 +68,27 @@ e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent d
 |`s` (req: HCC)	        |scale     | Set the image scaling to use for HCC detection		      		                                         |
 |`b` (req: HCC)	        |blur  	   | Specify whether to blur identified objects for HCC		      		                                     |
 |`r` (req: HCC)	        |rotation  | Specify whether to try rotation for HCC			      		                                         |
+<br></br>
 
+## Performance Measuring
+Provided in the repository is a performance testing and resource consumption testing utility, which monitors the amount of resources used by Blink during sixty seconds of runtime. To perform this testing, please first modify the values in the `Makefile` to reflect the values you would like to use for testing.
+```sh
+DEVICE = ...
+MISC = ...
+
+SSD_FILES = -c=<Configuration>,<Model>,<Labels>
+YOLO_FILES = -c=<Configuration>,<Model>,<Labels>
+HCC_FILES = -c=<Configuration>,<Model>,<Labels>
+```
+After that, run any particular test with one of the following: 
+- `make perftest-NONE`
+- `make perftest-SSD`
+- `make perftest-YOLO`
+- `make perftest-HCC`
+
+Alternatively, you can also run each test consecutively with `make perftest-ALL`.
+
+Finally, all that's left is to check the resulting `resource_usage_METHOD.png` file(s) generated which will show the graph of the resources used plotted against time. 
 <br></br>
 
 ## Acknowledgements
