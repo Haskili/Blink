@@ -68,6 +68,7 @@ e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent d
 |`s` (req: HCC)	        |scale     | Set the image scaling to use for HCC detection		      		                                         |
 |`b` (req: HCC)	        |blur  	   | Specify whether to blur identified objects for HCC		      		                                     |
 |`r` (req: HCC)	        |rotation  | Specify whether to try rotation for HCC			      		                                         |
+
 <br></br>
 
 ## Performance Measuring
