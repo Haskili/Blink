@@ -18,7 +18,7 @@ It utilizes [SSIM](https://en.wikipedia.org/wiki/Structural_similarity), Flat Di
 Each time that happens, the program then identifies objects in the image and their location. All identified objects are labeled with a number, weight of identification, and a outline depicting the region of interest. For any human detections using the [Single Shot Detector](https://link.springer.com/chapter/10.1007/978-3-319-46448-0_2) or the [YOLO  detector](https://pjreddie.com/darknet/yolo/), it will try to predict if any two people are too close for social-distancing by estimating the relative distance of every detected person from all other people it found in the image.
 
 <p align="center">
-	<img src="https://imgur.com/EBVqhyc.gif" alt="output2" border="0">
+    <img src="https://imgur.com/EBVqhyc.gif" alt="output2" border="0">
 </p>
 
 Finally, it will alert the user as to the time of the event, event number, and then saves this image to a separate file labeled with that event number.
@@ -48,48 +48,49 @@ Alternatively, to use the Single-Shot-Detector or YOLO detector functionality it
 ```sh
 ./driver -<MULTI-VALUE-OPTION>=<VALUE>,<VALUE>,...
 ```
-e.g. Capture an image every 1000000ns interval on devices 0 & 2 with a percent difference threshold of 15%
+<br>
+
+e.g. Capture an image every 1 millisecond interval on devices 0 & 2 with a percent difference threshold of 15%
 ```sh
-./driver -i=1000000 -t=15 -d=0,2
+./driver -i=1000000 -t=15 -d=/dev/video0,/dev/video2
 ```
+<br>
 
 ### Arguments
 |Option                 |Full Name |Description                                                                                              |
 |-----------------------|----------|---------------------------------------------------------------------------------------------------------|
-|`d`			        |device    | Sets the device used to read frames from		      		                                             |
-|`i`			        |interval  | Sets the interval between capturing frames in units of nanoseconds	                                     |
-|`m`			        |method    | Defines which method of calculating image difference is used (0: FTPD -- 1: SSIM)		      		     |
-|`f`					|fthresh   | Set the pixel-difference percentage threshold for FTPD		      		                                 |
-|`t`					|threshold | Specify the percent difference threshold to use for what qualifies as 'different images'              |
-|`n`					|type      | Set the detection method (-1: NONE -- 0: SSD -- 1: HCC)                                                 |
-|`c`					|classifier| Set the path to the file(s) used during classification                                                 |
-|`p` (req: SSD)	        |humanLID  | Specify the index of 'human' in class labels given for SSD			  		                             |
-|`a` (req: HCC)	        |neighbours| Set the minumum amount of neighbours for HCC detection			      		                             |
-|`s` (req: HCC)	        |scale     | Set the image scaling to use for HCC detection		      		                                         |
-|`b` (req: HCC)	        |blur  	   | Specify whether to blur identified objects for HCC		      		                                     |
-|`r` (req: HCC)	        |rotation  | Specify whether to try rotation for HCC			      		                                         |
+|`d`                    |device    | Sets the device used to read frames from                                                                |
+|`i`                    |interval  | Sets the interval between capturing frames in units of nanoseconds                                      |
+|`m`                    |method    | Defines which method of calculating image difference is used (0: FTPD -- 1: SSIM)                       |
+|`f`                    |fthresh   | Set the pixel-difference percentage threshold for FTPD                                                  |
+|`t`                    |threshold | Specify the percent difference threshold to use for what qualifies as 'different images'              |
+|`n`                    |type      | Set the detection method (-1: NONE -- 0: SSD -- 1: HCC)                                                 |
+|`c`                    |classifier| Set the path to the file(s) used during classification                                                 |
+|`p` (req: SSD)         |humanLID  | Specify the index of 'human' in class labels given for SSD                                              |
+|`a` (req: HCC)         |neighbours| Set the minumum amount of neighbours for HCC detection                                                  |
+|`s` (req: HCC)         |scale     | Set the image scaling to use for HCC detection                                                          |
+|`b` (req: HCC)         |blur      | Specify whether to blur identified objects for HCC                                                      |
+|`r` (req: HCC)         |rotation  | Specify whether to try rotation for HCC                                                                 |
 
 <br></br>
 
 ## Performance Measuring
 Provided in the repository is a performance testing and resource consumption testing utility, which monitors the amount of resources used by Blink during sixty seconds of runtime. To perform this testing, please first modify the values in the `Makefile` to reflect the values you would like to use for testing.
 ```sh
-DEVICE = ...
-MISC = ...
-
 SSD_FILES = -c=<Configuration>,<Model>,<Labels>
 YOLO_FILES = -c=<Configuration>,<Model>,<Labels>
-HCC_FILES = -c=<Configuration>,<Model>,<Labels>
+HCC_FILES = -c=<Classifier>
+
+DET_NONE = -n=-1
+DET_SSD = -n=0 $(SSD_FILES)
+DET_HCC = -n=1 $(HCC_FILES)
+DET_YOLO = -n=2 $(YOLO_FILES)
+
+DEVICE = ...
+MISC = ...
 ```
-After that, run any particular test with one of the following: 
-- `make perftest-NONE`
-- `make perftest-SSD`
-- `make perftest-YOLO`
-- `make perftest-HCC`
-
-Alternatively, you can also run each test consecutively with `make perftest-ALL`.
-
-Finally, all that's left is to check the resulting `resource_usage_METHOD.png` file(s) generated which will show the graph of the resources used plotted against time. 
+Finally, all that's left is run `make perftest` and check the resulting `resource_usage.png` file generated, which will show the graph of the resources used plotted against time. 
+<p align="center"><img src="https://i.imgur.com/fdc2HpF.png"  alt="resource-graph"  width="50%"  height="50%"></p>
 <br></br>
 
 ## Acknowledgements
